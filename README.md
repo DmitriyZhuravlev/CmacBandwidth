@@ -24,8 +24,8 @@ This project consists of a server and client that communicate over a secure chan
 1. Clone the repository:
 
     ```bash
-    $ git clone https://github.com/your-username/secure-communication.git
-    $ cd secure-communication
+    $ git clone https://git@github.com:DmitriyZhuravlev/CmacBandwidth.git
+    $ cd CmacBandwidth
     ```
 
 2. Compile the server and client:
