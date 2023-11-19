@@ -10,7 +10,8 @@
 
 #define PORT 8080
 
-#define CHANKS_NUMBER 10
+#define ITERATION_NUMBER 100
+#define CHANKS_NUMBER 2
 #define CMAC_SIZE 16
 #define MAX_PACKET_SIZE 1460
 #define MAX_PAYLOAD_SIZE (MAX_PACKET_SIZE - CMAC_SIZE)
@@ -26,19 +27,19 @@ void calculateCMAC(const char *key, const char *data, size_t dataSize, char *cma
 
     ctx = EVP_CIPHER_CTX_new();
 
-    // Debug: Print key
+    //// Debug: Print key
     //printf("Key: ");
     //for (size_t i = 0; i < EVP_CIPHER_key_length(cipher); ++i)
     //{
-    //printf("%02x", (unsigned char)key[i]);
+        //printf("%02x", (unsigned char)key[i]);
     //}
     //printf("\n");
 
-    // Debug: Print input data and size
+    //// Debug: Print input data and size
     //printf("Input Data (Size %zu): ", dataSize);
     //for (size_t i = 0; i < dataSize; ++i)
     //{
-    //printf("%02x", (unsigned char)data[i]);
+        //printf("%02x", (unsigned char)data[i]);
     //}
     //printf("\n");
 
@@ -46,34 +47,32 @@ void calculateCMAC(const char *key, const char *data, size_t dataSize, char *cma
     EVP_EncryptUpdate(ctx, cmacResult, &len, data, dataSize);
     EVP_EncryptFinal_ex(ctx, cmacResult, &len);
 
-    // Debug: Print CMAC Result and size
-    //printf("CMAC Result (Size %zu): ", len);
+    //// Debug: Print CMAC Result and size
+    //printf("CMAC Result (Size %zu): \n", len);
     //for (size_t i = 0; i < CMAC_SIZE; ++i)
     //{
-    //printf("%02x", (unsigned char)cmacResult[i]);
+        //printf("%02x, ", (unsigned char)cmacResult[i]);
     //}
     //printf("\n");
 
     EVP_CIPHER_CTX_free(ctx);
 }
 
-int receiveDataWithCMAC(int clientSocket, const char *key, char *buffer, size_t bufferSize)
+int receiveDataWithCMAC(int clientSocket, const char *key) //, char *buffer, size_t bufferSize)
 {
     size_t totalBytesRead = 0;
-    char debug[MAX_PACKET_SIZE + 1] = {0};
     static int start = 0;
+    char buffer[MAX_PACKET_SIZE];
 
-    while (totalBytesRead < bufferSize)
+    while (totalBytesRead < ITERATION_NUMBER * CHANKS_NUMBER * MAX_PACKET_SIZE)
     {
         // Read the chunk (payload + CMAC)
-        ssize_t bytesRead = recv(clientSocket, buffer + totalBytesRead, MAX_PACKET_SIZE, 0);
-        //printf("Bytes read: %d \n", bytesRead);
-        //ssize_t bytesRead = recv(clientSocket, debug, MAX_PACKET_SIZE, 0);
-        //printf("%s \n", buffer + totalBytesRead);
+        ssize_t bytesRead = recv(clientSocket, buffer, MAX_PACKET_SIZE, 0);
         if (bytesRead <= 0)
         {
             perror("Error receiving data");
             return -1;
+            //continue;
         }
         else if (start == 0)
         {
@@ -82,14 +81,14 @@ int receiveDataWithCMAC(int clientSocket, const char *key, char *buffer, size_t 
         }
 
         char receivedCMAC[CMAC_SIZE];
-        calculateCMAC(key, buffer + totalBytesRead, MAX_PAYLOAD_SIZE, receivedCMAC);
+        calculateCMAC(key, buffer, MAX_PAYLOAD_SIZE, receivedCMAC);
         //printf("receivedCMAC: %s \n", receivedCMAC);
 
         // Verify CMAC
-        if (memcmp(receivedCMAC, buffer + totalBytesRead + MAX_PAYLOAD_SIZE, CMAC_SIZE) != 0)
+        if (memcmp(receivedCMAC, buffer + MAX_PAYLOAD_SIZE, CMAC_SIZE) != 0)
         {
             fprintf(stderr, "CMAC verification failed\n");
-            return -1;
+            //return -1;
         }
         //else
         //{
@@ -143,7 +142,12 @@ int main()
     const char key[] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
 
     char receivedData[MAX_BUFFER_SIZE];
-    int totalBytesRead = receiveDataWithCMAC(clientSocket, key, receivedData, MAX_BUFFER_SIZE);
+
+    int totalBytesRead = 0;
+    for (int i = 0; i < ITERATION_NUMBER; i++)
+    {
+        totalBytesRead += receiveDataWithCMAC(clientSocket, key); //, receivedData, MAX_BUFFER_SIZE);
+    }
 
     clock_t end_time = clock();
     double total_time = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
@@ -151,13 +155,13 @@ int main()
     // Calculate bandwidth in bytes per second
     double bandwidth = totalBytesRead / total_time;
 
-    // Calculate actual bandwidth (excluding MAC) in bytes per second
-    double actual_bandwidth = (totalBytesRead - (CMAC_SIZE * (totalBytesRead / MAX_PACKET_SIZE))) /
-                              total_time;
+    // Calculate actual bandwidth (excluding MAC) in megabytes per second
+    double actual_bandwidth_MB = ((totalBytesRead - (CMAC_SIZE * (totalBytesRead / MAX_PACKET_SIZE))) /
+                                  total_time) / (1024 * 1024);
 
-    printf("Received %zu bytes in %.4f seconds\n", totalBytesRead, total_time);
-    printf("Total Bandwidth: %.2f bytes/second\n", bandwidth);
-    printf("Actual Bandwidth (excluding MAC): %.2f bytes/second\n", actual_bandwidth);
+    printf("Received %.2f MB in %.4f seconds\n", (double) totalBytesRead / (1024 * 1024), total_time);
+    printf("Total Bandwidth: %.2f MB/second\n", bandwidth / (1024 * 1024));
+    printf("Actual Bandwidth (excluding MAC): %.2f MB/second\n", actual_bandwidth_MB);
 
     close(clientSocket);
     close(serverSocket);

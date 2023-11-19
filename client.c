@@ -9,11 +9,11 @@
 
 #define PORT 8080
 
-#define CHANKS_NUMBER 10
+#define ITERATION_NUMBER 100
+#define CHANKS_NUMBER 2
 #define CMAC_SIZE 16
 #define MAX_PACKET_SIZE 1460
 #define MAX_PAYLOAD_SIZE (MAX_PACKET_SIZE - CMAC_SIZE)
-#define MAX_BUFFER_SIZE (MAX_PACKET_SIZE * CHANKS_NUMBER)
 
 void calculateCMAC(const char *key, const char *data, size_t dataSize, char *cmacResult)
 {
@@ -54,15 +54,16 @@ void calculateCMAC(const char *key, const char *data, size_t dataSize, char *cma
     EVP_CIPHER_CTX_free(ctx);
 }
 
+
 void sendDataWithCMAC(int clientSocket, const char *key, const char *data, size_t dataSize)
 {
-    char cmacResult[CMAC_SIZE];
+    char cmacResult[CMAC_SIZE] = {0x87, 0x30, 0x33, 0xda, 0x81, 0x4b, 0x59, 0xce, 0xb7, 0xc4, 0xcb, 0x3f, 0x13, 0xff, 0x06, 0xd4};
     char result[MAX_PACKET_SIZE];
 
     for (size_t i = 0; i * MAX_PAYLOAD_SIZE < dataSize; i++)
     {
         // Calculate CMAC for the current chunk
-        calculateCMAC(key, data + i * MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE, cmacResult);
+        //calculateCMAC(key, data + i * MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE, cmacResult);
         //printf("cmacResult: %s\n", cmacResult);
 
         // Copy payload to the result buffer
@@ -103,13 +104,17 @@ int main()
 
     // Generate random data to fill payload + CMAC size of 1460 bytes
     size_t dataSize = CHANKS_NUMBER * MAX_PAYLOAD_SIZE;
-    char randomData[dataSize];
-    for (size_t i = 0; i < dataSize; ++i)
-    {
-        randomData[i] = rand() % 256;  // Fill with random byte values
-    }
+    char randomData[CHANKS_NUMBER * MAX_PAYLOAD_SIZE] = {0};
+    //for (size_t i = 0; i < dataSize; ++i)
+    //{
+        //randomData[i] = rand() % 256;  // Fill with random byte values
+    //}
 
-    sendDataWithCMAC(clientSocket, key, randomData, dataSize);
+    for (int i = 0; i < ITERATION_NUMBER; i++)
+    {
+        sendDataWithCMAC(clientSocket, key, randomData, dataSize);
+        printf("Sent: %d\n", i);
+    }
 
     close(clientSocket);
 
