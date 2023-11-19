@@ -9,8 +9,8 @@
 
 #define PORT 8080
 
-#define ITERATION_NUMBER 100
-#define CHANKS_NUMBER 2
+#define ITERATION_NUMBER 1
+#define CHANKS_NUMBER 1
 #define CMAC_SIZE 16
 #define MAX_PACKET_SIZE 1460
 #define MAX_PAYLOAD_SIZE (MAX_PACKET_SIZE - CMAC_SIZE)
@@ -58,7 +58,7 @@ void calculateCMAC(const char *key, const char *data, size_t dataSize, char *cma
 void sendDataWithCMAC(int clientSocket, const char *key, const char *data, size_t dataSize)
 {
     char cmacResult[CMAC_SIZE] = {0x93, 0x9e, 0x81, 0x59, 0xf6, 0xf8, 0xb7, 0xc5, 0x8e, 0x9f, 0x0d, 0xc7, 0x61, 0x53, 0xda, 0xe9};
-    char result[MAX_PACKET_SIZE];
+    char result[MAX_PACKET_SIZE] = {0};
 
     for (size_t i = 0; i * MAX_PAYLOAD_SIZE < dataSize; i++)
     {
@@ -67,7 +67,7 @@ void sendDataWithCMAC(int clientSocket, const char *key, const char *data, size_
         //printf("cmacResult: %s\n", cmacResult);
 
         // Copy payload to the result buffer
-        memcpy(result, data + i * MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE);
+        //memcpy(result, data + i * MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE);
 
         // Copy CMAC to the result buffer
         memcpy(result + MAX_PAYLOAD_SIZE, cmacResult, CMAC_SIZE);
