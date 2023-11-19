@@ -19,43 +19,27 @@
 
 clock_t start_time;
 
+
+void printBytes(unsigned char *buf, size_t len) {
+  for(int i=0; i<len; i++) {
+    printf("%02x ", buf[i]);
+  }
+  printf("\n");
+}
+
+
 void calculateCMAC(const char *key, const char *data, size_t dataSize, char *cmacResult)
 {
-    EVP_CIPHER_CTX *ctx;
-    const EVP_CIPHER *cipher = EVP_aes_128_cbc();
     size_t len;
+    CMAC_CTX *ctx = CMAC_CTX_new();
+    CMAC_Init(ctx, key, CMAC_SIZE, EVP_aes_128_cbc(), NULL);
+ 
+    CMAC_Update(ctx, data, dataSize);
+    CMAC_Final(ctx, cmacResult, &len);
 
-    ctx = EVP_CIPHER_CTX_new();
-
-    //// Debug: Print key
-    //printf("Key: ");
-    //for (size_t i = 0; i < EVP_CIPHER_key_length(cipher); ++i)
-    //{
-        //printf("%02x", (unsigned char)key[i]);
-    //}
-    //printf("\n");
-
-    //// Debug: Print input data and size
-    //printf("Input Data (Size %zu): ", dataSize);
-    //for (size_t i = 0; i < dataSize; ++i)
-    //{
-        //printf("%02x", (unsigned char)data[i]);
-    //}
-    //printf("\n");
-
-    EVP_EncryptInit_ex(ctx, cipher, NULL, key, NULL);
-    EVP_EncryptUpdate(ctx, cmacResult, &len, data, dataSize);
-    EVP_EncryptFinal_ex(ctx, cmacResult, &len);
-
-    //// Debug: Print CMAC Result and size
-    //printf("CMAC Result (Size %zu): \n", len);
-    //for (size_t i = 0; i < CMAC_SIZE; ++i)
-    //{
-        //printf("%02x, ", (unsigned char)cmacResult[i]);
-    //}
-    //printf("\n");
-
-    EVP_CIPHER_CTX_free(ctx);
+    //printBytes(cmacResult, len);
+  
+    CMAC_CTX_free(ctx);
 }
 
 int receiveDataWithCMAC(int clientSocket, const char *key) //, char *buffer, size_t bufferSize)
