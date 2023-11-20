@@ -10,7 +10,7 @@
 
 #define PORT 8080
 
-#define ITERATION_NUMBER 1
+#define ITERATION_NUMBER 1000000
 #define CHANKS_NUMBER 1
 #define CMAC_SIZE 16
 #define MAX_PACKET_SIZE 1460
@@ -19,26 +19,24 @@
 
 clock_t start_time;
 
-
 void printBytes(unsigned char *buf, size_t len) {
-  for(int i=0; i<len; i++) {
-    printf("%02x ", buf[i]);
-  }
-  printf("\n");
+    for(int i=0; i<len; i++) {
+        printf("%02x ", buf[i]);
+    }
+    printf("\n");
 }
-
 
 void calculateCMAC(const char *key, const char *data, size_t dataSize, char *cmacResult)
 {
     size_t len;
     CMAC_CTX *ctx = CMAC_CTX_new();
     CMAC_Init(ctx, key, CMAC_SIZE, EVP_aes_128_cbc(), NULL);
- 
+
     CMAC_Update(ctx, data, dataSize);
     CMAC_Final(ctx, cmacResult, &len);
 
     //printBytes(cmacResult, len);
-  
+
     CMAC_CTX_free(ctx);
 }
 
@@ -48,17 +46,31 @@ int receiveDataWithCMAC(int clientSocket, const char *key) //, char *buffer, siz
     static int start = 0;
     char buffer[MAX_PACKET_SIZE];
 
-    while (totalBytesRead < ITERATION_NUMBER * CHANKS_NUMBER * MAX_PACKET_SIZE)
+    while (totalBytesRead < CHANKS_NUMBER * MAX_PACKET_SIZE)
     {
         // Read the chunk (payload + CMAC)
-        ssize_t bytesRead = recv(clientSocket, buffer, MAX_PACKET_SIZE, 0);
-        if (bytesRead <= 0)
+        ssize_t bytesRead = 0;
+        ssize_t bufSize = MAX_PACKET_SIZE;
+        ssize_t partialRead = 0;
+        while (bytesRead < MAX_PACKET_SIZE)
         {
-            perror("Error receiving data");
-            return -1;
-            //continue;
+            partialRead = recv(clientSocket, buffer + bytesRead, bufSize, 0);
+            //if (partialRead < MAX_PACKET_SIZE)
+            //{
+                //printf("Read: %d\n", partialRead);
+                //printf("Read Total: %d\n", totalBytesRead);
+            //}
+            bytesRead += partialRead;
+            bufSize = MAX_PACKET_SIZE - bytesRead;
+            if (partialRead <= 0)
+            {
+                perror("Error receiving data");
+                return -1;
+                //continue;
+            }
         }
-        else if (start == 0)
+
+        if (start == 0)
         {
             start = 1;
             start_time = clock();
