@@ -10,12 +10,11 @@
 
 #define PORT 8080
 
-#define ITERATION_NUMBER 1000000
-#define CHANKS_NUMBER 1
+#define ITERATION_NUMBER 1000
 #define CMAC_SIZE 16
 #define MAX_PACKET_SIZE 1460
 #define MAX_PAYLOAD_SIZE (MAX_PACKET_SIZE - CMAC_SIZE)
-#define MAX_BUFFER_SIZE (MAX_PACKET_SIZE * CHANKS_NUMBER)
+#define MAX_BUFFER_SIZE MAX_PACKET_SIZE
 
 clock_t start_time;
 
@@ -46,7 +45,7 @@ int receiveDataWithCMAC(int clientSocket, const char *key) //, char *buffer, siz
     static int start = 0;
     char buffer[MAX_PACKET_SIZE];
 
-    while (totalBytesRead < CHANKS_NUMBER * MAX_PACKET_SIZE)
+    while (totalBytesRead <  MAX_PACKET_SIZE)
     {
         // Read the chunk (payload + CMAC)
         ssize_t bytesRead = 0;
@@ -139,11 +138,12 @@ int main()
 
     char receivedData[MAX_BUFFER_SIZE];
 
-    int totalBytesRead = 0;
+    unsigned long int totalBytesRead = 0;
     for (int i = 0; i < ITERATION_NUMBER; i++)
     {
         totalBytesRead += receiveDataWithCMAC(clientSocket, key); //, receivedData, MAX_BUFFER_SIZE);
     }
+    
 
     clock_t end_time = clock();
     double total_time = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
@@ -155,6 +155,7 @@ int main()
     double actual_bandwidth_MB = ((totalBytesRead - (CMAC_SIZE * (totalBytesRead / MAX_PACKET_SIZE))) /
                                   total_time) / (1024 * 1024);
 
+    //printf("Should be %.f \n", (double) ITERATION_NUMBER * MAX_PACKET_SIZE /(1024 * 1024));
     printf("Received %.2f MB in %.4f seconds\n", (double) totalBytesRead / (1024 * 1024), total_time);
     printf("Total Bandwidth: %.2f MB/second\n", bandwidth / (1024 * 1024));
     printf("Actual Bandwidth (excluding MAC): %.2f MB/second\n", actual_bandwidth_MB);
